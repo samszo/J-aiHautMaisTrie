@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Web avec D3.js et Anime.js</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .chart {
+            margin: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chart"></div>
+
+    <script>
+        showSpirale(660,660);
+
+        function showSpirale(h,w){
+            let marge = 10,
+            arrLineSpirale = [], 
+            deb = {'x':w/2, 'y': 430}, fin;
+            svg = d3.select('.chart')
+                .attr('width', w+(marge*4)).attr('height', h+(marge*4))
+                .append('svg')
+                    .attr('width', w+(marge*4)).attr('height', h+(marge*4)),
+            graph = svg.append('g').attr('transform','translate('+marge+','+marge+')');
+            //création du rectangle
+            graph.append('rect')
+                .attr('width', w).attr('height', h)
+                .attr('x', 0).attr('y', 0)
+                .attr('fill','none')
+                .attr('stroke','#000000').attr('stroke-width',1); 
+            //création des repères
+            let arrLineRep = [
+                {'x1':(w/2),'y1':(h/2),'x2':(w/2),'y2':h},
+                {'x1':(w/2),'y1':(h/2),'x2':(w/4*3),'y2':h},
+                {'x1':(w/2),'y1':(h/2),'x2':(w),'y2':h},
+                {'x1':(w/2),'y1':(h/2),'x2':(w),'y2':(h/4*3)},
+                {'x1':(w/2),'y1':(h/2),'x2':(w),'y2':(h/2)},
+                {'x1':(w/2),'y1':(h/2),'x2':(w),'y2':(h/4)},
+                {'x1':(w/2),'y1':(h/2),'x2':(w),'y2':(0)},
+                {'x1':(w/2),'y1':(h/2),'x2':(w/4*3),'y2':(0)},
+                {'x1':(w/2),'y1':(h/2),'x2':(w/2),'y2':(0)},
+                {'x1':(w/2),'y1':(h/2),'x2':(w/4),'y2':(0)},
+                {'x1':(w/2),'y1':(h/2),'x2':(0),'y2':(0)},
+                {'x1':(w/2),'y1':(h/2),'x2':(0),'y2':(h/4)},
+                {'x1':(w/2),'y1':(h/2),'x2':(0),'y2':(h/2)},
+                {'x1':(w/2),'y1':(h/2),'x2':(0),'y2':(h/4*3)},
+                {'x1':(w/2),'y1':(h/2),'x2':(0),'y2':(h)},
+                {'x1':(w/2),'y1':(h/2),'x2':(w/4),'y2':(h)},
+            ];
+            arrLineRep.forEach((l,i)=>{
+                l.next = i == arrLineRep.length-1 ? arrLineRep[0] : arrLineRep[(i+1)];
+                l.angle = getAngle(l);
+            })
+            graph.selectAll('line')
+                .data(arrLineRep)
+                .enter()
+                .append('line')
+                .attr('x1', d => d.x1)
+                .attr('y1', d => d.y1)
+                .attr('x2', d => d.x2)
+                .attr('y2', d => d.y2)
+                .attr('stroke', 'black')
+                .attr('stroke-width', 1);
+             graph.selectAll('.nomLigne')
+                .data(arrLineRep)
+                .enter()
+                .append('text')
+                .attr('class','nomLigne')
+                .attr('x', d => d.x2)
+                .attr('y', d => d.y2)
+                .text((d,i)=>'(d'+(i+1)+')');
+
+            //création des lignes spirales
+            arrLineRep.forEach((l,i)=>{
+                let a = getDistance(deb,l),
+                b_deg = l.angle-l.next.angle,
+                c_deg = 90,
+                bb=b_deg*Math.PI/180,                
+                cc=c_deg*Math.PI/180,                
+                aa=Math.PI-bb-cc,
+                b=a*Math.sin(bb)/Math.sin(aa),
+                c=a*Math.sin(cc)/Math.sin(aa);
+                aa=aa*180/Math.PI;
+                fin = findNewPoint(deb.x,deb.y,l.angle-90,b);
+                if(i>=0)arrLineSpirale.push({'x1':deb.x,'y1':deb.y,'x2':fin.x,'y2':fin.y})
+                deb = fin;
+            })
+
+            graph.selectAll('.spirale')
+                .data(arrLineSpirale)
+                .enter()
+                .append('line')
+                .attr('class', 'spirale')
+                .attr('x1', d => d.x1)
+                .attr('y1', d => d.y1)
+                .attr('x2', d => d.x2)
+                .attr('y2', d => d.y2)
+                .attr('stroke', 'red')
+                .attr('stroke-width', 1);
+            graph.selectAll('.deb')
+                .data(arrLineSpirale)
+                .enter()
+                .append('circle')
+                .attr('class', 'deb')
+                .attr('cx', d => d.x1)
+                .attr('cy', d => d.y1)
+                .attr('r', 10)
+                .attr('fill', 'yellow');
+            graph.selectAll('.fin')
+                .data(arrLineSpirale)
+                .enter()
+                .append('circle')
+                .attr('class', 'fin')
+                .attr('cx', d => d.x2)
+                .attr('cy', d => d.y2)
+                .attr('r', 16)
+                .attr('fill', 'none')
+                .attr('stroke', 'red')
+                .attr('stroke-width', 1);
+            graph.selectAll('.nomPoint')
+                .data(arrLineSpirale)
+                .enter()
+                .append('text')
+                .attr('class','nomPoint')
+                .attr('x', d => d.x1-5)
+                .attr('y', d => d.y1+5)
+                .text((d,i)=>i);
+
+        };
+
+        function findNewPoint(x, y, angle, distance) {
+            var result = {};
+            result.x = Math.cos(angle * Math.PI / 180) * distance + x;
+            result.y = Math.sin(angle * Math.PI / 180) * distance + y;
+            return result;
+        }
+        function getAngle(l){
+            return Math.atan2(l.y2 - l.y1, l.x2 - l.x1) * 180 / Math.PI;                           
+        }
+        function getDistance(deb,fin){
+            let da = deb.x - fin.x1, db = deb.y - fin.y1;
+            return Math.sqrt( da*da + db*db );
+        }
+
+    </script>
+</body>
+</html>
